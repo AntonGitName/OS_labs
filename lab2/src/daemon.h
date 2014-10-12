@@ -1,4 +1,3 @@
-#pragma once
 #ifndef DAEMON_H
 #define DAEMON_H
 
@@ -10,6 +9,8 @@
 #include <sys/stat.h>
 #include <syslog.h>
 #include <memory.h>
+
+#include <sstream>
 
 const char* const DAEMON_NAME = "labDaemon";
 

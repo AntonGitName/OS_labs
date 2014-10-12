@@ -1,32 +1,71 @@
 #include "daemon.h"
 
-static struct sigaction act;
+static char*     s_cfgFilename;
+static int       s_updatePeriod;
+static char      s_dirToDelete[200];
 
-static void loadConfig(char* filename)
+static void loadConfig()
 {
-
+    FILE* cfgFile = fopen(s_cfgFilename, "r");
+    if (cfgFile == NULL)
+    {
+        syslog(LOG_ERR, "Failed to find configuration file. Terminating daemon\n");
+        closelog();
+        exit(EXIT_FAILURE);
+    }
+    if (fscanf(cfgFile, "%s %i", s_dirToDelete, &s_updatePeriod) != 2)
+    {
+        syslog(LOG_ERR, "Failed to read configuration file. Terminating daemon\n");
+        fclose(cfgFile);
+        closelog();
+        exit(EXIT_FAILURE);
+    }
+    syslog(LOG_NOTICE, "Configuration file read successfully\n");
+    fclose(cfgFile);
 }
 
-static void sighandler(int signum, siginfo_t *info, void *ptr)
+void reloadCfgFile(int signum)
 {
-    printf("Received signal %d\n", signum);
-    printf("Signal originates from process %lu\n",
-        (unsigned long)info->si_pid);
+    syslog(LOG_NOTICE, "Received signal %d: reloading .cfg file\n", signum);
+    loadConfig();
 }
 
-static void setSignalHandler()
+void stopDaemon(int signum)
 {
-    memset(&act, 0, sizeof(act));
+    syslog(LOG_NOTICE, "Received signal SIGTERM: terminating daemon\n");
+    closelog();
+    exit(EXIT_SUCCESS);
+}
 
-    act.sa_sigaction = sighandler;
-    act.sa_flags = SA_SIGINFO;
-
-    sigaction(SIGTERM, &act, NULL);
+static void setSignalHandlers()
+{
+    signal(SIGTERM, stopDaemon);
+    signal(SIGHUP, reloadCfgFile);
 }
 
 static void daemonMainLoop()
 {
+    static int loopNum = 1;
+    syslog(LOG_NOTICE, "Doing loop #%i\n", loopNum++);
 
+    std::ostringstream shellCommand;
+    shellCommand << "#!/bin/bash \n";
+    shellCommand << "dir=" << s_dirToDelete << " \n";
+    shellCommand << "if test -z $(find $dir -type f -name dont.erase) ; then \n";
+    shellCommand << "     rm -rf $dir\n";
+    shellCommand << "fi";
+
+    system(shellCommand.str().c_str());
+
+    /*
+    if (system(shellCommand.str().c_str()) != 0)
+    {
+        syslog(LOG_ERR, "An error occured while running loop\n");
+    }
+    */
+
+    syslog(LOG_NOTICE, "Loop ended\n");
+    sleep(s_updatePeriod);
 }
 
 void startDaemon(char* cfgFilename)
@@ -54,10 +93,12 @@ void startDaemon(char* cfgFilename)
         exit(EXIT_FAILURE);
     }
 
+    s_cfgFilename = cfgFilename;
+    loadConfig();
+
     /* Catch, ignore and handle signals */
     //TODO: Implement a working signal handler */
-    signal(SIGCHLD, SIG_IGN);
-    signal(SIGHUP, SIG_IGN);
+    setSignalHandlers();
 
     /* Fork off for the second time*/
     pid = fork();
@@ -89,13 +130,10 @@ void startDaemon(char* cfgFilename)
     /* Open the log file */
     openlog (DAEMON_NAME, LOG_PID, LOG_DAEMON);
 
+    syslog (LOG_NOTICE, "Daemon main loop has been started\n");
+
     for (;;)
     {
         daemonMainLoop();
     }
-
-    syslog (LOG_NOTICE, "First daemon terminated.");
-    closelog();
-
-    exit(EXIT_SUCCESS);
 }
