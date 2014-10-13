@@ -9,6 +9,7 @@
 #include <sys/stat.h>
 #include <syslog.h>
 #include <memory.h>
+#include <limits.h>
 
 #include <sstream>
 

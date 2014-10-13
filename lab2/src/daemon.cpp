@@ -1,15 +1,15 @@
 #include "daemon.h"
 
-static char*     s_cfgFilename;
+static char      s_cfgFilename[PATH_MAX + 1];
 static int       s_updatePeriod;
-static char      s_dirToDelete[200];
+static char      s_dirToDelete[PATH_MAX + 1];
 
 static void loadConfig()
 {
     FILE* cfgFile = fopen(s_cfgFilename, "r");
     if (cfgFile == NULL)
     {
-        syslog(LOG_ERR, "Failed to find configuration file. Terminating daemon\n");
+        syslog(LOG_ERR, "Failed to find configuration file (%s). Terminating daemon\n", s_cfgFilename);
         closelog();
         exit(EXIT_FAILURE);
     }
@@ -26,7 +26,7 @@ static void loadConfig()
 
 void reloadCfgFile(int signum)
 {
-    syslog(LOG_NOTICE, "Received signal %d: reloading .cfg file\n", signum);
+    syslog(LOG_NOTICE, "Received signal SIGHUP: reloading .cfg file\n");
     loadConfig();
 }
 
@@ -52,17 +52,10 @@ static void daemonMainLoop()
     shellCommand << "#!/bin/bash \n";
     shellCommand << "dir=" << s_dirToDelete << " \n";
     shellCommand << "if test -z $(find $dir -type f -name dont.erase) ; then \n";
-    shellCommand << "     rm -rf $dir\n";
+    shellCommand << "     rm -rf $dir/*\n";
     shellCommand << "fi";
 
     system(shellCommand.str().c_str());
-
-    /*
-    if (system(shellCommand.str().c_str()) != 0)
-    {
-        syslog(LOG_ERR, "An error occured while running loop\n");
-    }
-    */
 
     syslog(LOG_NOTICE, "Loop ended\n");
     sleep(s_updatePeriod);
@@ -93,11 +86,12 @@ void startDaemon(char* cfgFilename)
         exit(EXIT_FAILURE);
     }
 
-    s_cfgFilename = cfgFilename;
+    strcpy(s_cfgFilename, cfgFilename);
     loadConfig();
+    realpath(cfgFilename, s_cfgFilename);
+
 
     /* Catch, ignore and handle signals */
-    //TODO: Implement a working signal handler */
     setSignalHandlers();
 
     /* Fork off for the second time*/
