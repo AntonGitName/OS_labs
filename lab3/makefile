@@ -1,21 +1,37 @@
+TITLE_NAME=Lab3
+OUT_DIR=output/
+OBJ_DIR=$(OUT_DIR)obj/
+BIN_DIR=$(OUT_DIR)bin/
 CC=g++
-CFLAGS=-c -Wall
-LDFLAGS=
-SOURCES=$(wildcard src/*.cpp)
-OBJECTS=$(SOURCES:.cpp=.o)
-EXECUTABLE=labDaemon
+CFLAGS= -Wall -Werror -std=c++11
 
-all: $(SOURCES) $(EXECUTABLE)
+ALL_SOURCES=$(wildcard *.cpp)
+TARGET_SOURCES=$(wildcard v09_*.cpp)
+COMMON_SOURCES=$(filter-out $(TARGET_SOURCES), $(wildcard *.cpp))
 
-onlybin: all
-	rm -rf $(OBJECTS)
-	
-$(EXECUTABLE): $(OBJECTS) 
-	$(CC) $(LDFLAGS) $(OBJECTS) -o $@
+ALL_OBJECTS=$(addprefix $(OBJ_DIR), $(ALL_SOURCES:.cpp=.o))
+TARGET_OBJECTS=$(addprefix $(OBJ_DIR), $(TARGET_SOURCES:.cpp=.o))
+COMMON_OBJECTS=$(addprefix $(OBJ_DIR), $(COMMON_SOURCES:.cpp=.o))
+ALL_TARGETS=$(addprefix $(BIN_DIR), $(TARGET_SOURCES:%.cpp=%))
 
-.cpp.o:
-	$(CC) $(CFLAGS) $< -o $@
+dir_guard=@mkdir -p $(@D)
+
+all: $(ALL_TARGETS)
+
+$(ALL_TARGETS): $(COMMON_OBJECTS) $(TARGET_OBJECTS)
+	$(dir_guard)
+	$(CC) $(CFLAGS) $(TARGET_OBJECTS) $(COMMON_OBJECTS) -o $@
+
+$(OBJ_DIR)%.o: %.cpp
+	$(dir_guard)
+	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
-	rm -rf $(OBJECTS)
-	rm $(EXECUTABLE)
+	@rm -rf $(OUT_DIR)
+
+print_vars:
+	@echo $(TARGET_SOURCES)
+	@echo $(COMMON_SOURCES)
+	@echo $(TARGET_OBJECTS)
+	@echo $(COMMON_OBJECTS)
+	@echo $(ALL_TARGETS)

@@ -2,58 +2,38 @@
 #include "my_signal.h"
 
 #include <string.h>
-#include  <sys/shm.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <signal.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/wait.h>
+#include <sys/shm.h>
+#include <syslog.h>
 
 const int MAGIC_KEY = 2014;
+const int BUFF_SIZE = (32 + 1) * 3 * sizeof(char);
 
-int buffSize;
-
-void parent_job(pid_t childPid)
-{
-    /* Open the log file */
-    openlog (DAEMON_NAME, LOG_PID, LOG_DAEMON);
-
-    syslog (LOG_NOTICE, "PARENT: child proccess %i created\n", (int)childPid);
-
-    const char* str[] = {generate_str(), generate_str(), generate_str()};
-    buffSize = strlen(str[0]) + strlen(str[1]) + strlen(str[2]) + 3;
-
-    syslog (LOG_NOTICE, "PARENT: creating segment of shared memory of %i bytes\n", buffsize);
-
-    int shmid = shmget(MAGIC_KEY, buffSize, IPC_CREATE);
-    char* shm = (char*) shmat(shmid, 0, 0);
-
-    int offset = 0;
-    for (int i = 0; i < 3; ++i)
-    {
-        strcpy(shm + offset, str[i]);
-        offset += strlen(str[i]) + 1;
-    }
-
-    int returnStatus;
-    waitpid(childPid, &returnStatus, 0);  // Parent process waits here for child to terminate.
-
-    if (returnStatus == 0)  // Verify child process terminated without error.
-    {
-       syslog (LOG_NOTICE, "PARENT: The child process terminated normally\n");
-    } else
-    {
-       syslog (LOG_NOTICE, "PARENT: The child process terminated with an error!\n");
-    }
-
-    shmdt(shm);
-    shmctl(shmid, IPC_RMID, NULL);
-
-    syslog (LOG_NOTICE, "PARENT: the work is done.\n");
-    closelog();
-    exit(EXIT_SUCCESS);
-}
+int shmid;
+char* shm;
 
 void signal_handler(int signal)
 {
-    syslog (LOG_NOTICE, "SIGUSR1 received.\n");
+    syslog (LOG_NOTICE, "CHILD: SIGUSR1 received.\n");
 
-    int shmid = shmget(MAGIC_KEY, );
+    syslog (LOG_NOTICE, "PARENT: Reading strings from shared memory:\n");
+
+    int offset = 0;
+    const char* strings[3];
+    for (int i = 0; i < 3; ++i)
+    {
+        strings[i] = shm + offset;
+        offset += strlen(strings[i]) + 1;
+        syslog (LOG_NOTICE, "[%d] %s\n", i, strings[i]);
+    }
+
+    syslog (LOG_NOTICE, "CHILD: Result: %d \n", target_func(strings[0], strings[1], strings[2]));
 
     syslog (LOG_NOTICE, "CHILD: the work is done.\n");
     closelog();
@@ -62,10 +42,11 @@ void signal_handler(int signal)
 
 void child_job()
 {
-    openlog (DAEMON_NAME, LOG_PID, LOG_DAEMON);
+    openlog ("CHILD", LOG_PID, LOG_DAEMON);
 
-    syslog (LOG_NOTICE, "CHILD: registering signal\n");
+    syslog (LOG_NOTICE, "CHILD: registering signal SIGUSR1\n");
     register_signal(SIGUSR1, signal_handler);
+    syslog (LOG_NOTICE, "CHILD: signal SIGUSR1 registered\n");
     for (;;);
 }
 
@@ -73,6 +54,29 @@ void child_job()
 
 int main()
 {
+
+    /* Open the log file */
+    openlog ("PARENT", LOG_PID, LOG_DAEMON);
+
+    std::string str[] = {generate_str(), generate_str(), generate_str()};
+
+    syslog (LOG_NOTICE, "PARENT: creating segment of shared memory of %i bytes\n", BUFF_SIZE);
+
+    shmid = shmget(IPC_PRIVATE, BUFF_SIZE, IPC_CREAT|0660);
+    shm = (char*) shmat(shmid, 0, 0);
+
+    syslog (LOG_NOTICE, "PARENT: Memory attached\n");
+
+    syslog (LOG_NOTICE, "PARENT: Strings generated:\n");
+
+    int offset = 0;
+    for (int i = 0; i < 3; ++i)
+    {
+        syslog (LOG_NOTICE, "[%d] %s\n", i, str[i].c_str());
+        strcpy(shm + offset, str[i].c_str());
+        offset += str[i].length() + 1;
+    }
+
 
     pid_t pid;
 
@@ -88,8 +92,14 @@ int main()
     /* Success: Let the parent terminate */
     if (pid > 0)
     {
-        parent_job(pid);
+        syslog (LOG_NOTICE, "PARENT: child proccess %i created\n", (int)pid);
+        wait(0);
+        shmdt(shm);
+        shmctl(shmid, IPC_RMID, NULL);
 
+        syslog (LOG_NOTICE, "PARENT: the work is done.\n");
+        closelog();
+        exit(EXIT_SUCCESS);
     }
     else
     {
