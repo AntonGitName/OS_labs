@@ -1,4 +1,3 @@
-TITLE_NAME=Lab3
 OUT_DIR=output/
 OBJ_DIR=$(OUT_DIR)obj/
 BIN_DIR=$(OUT_DIR)bin/
@@ -16,11 +15,11 @@ ALL_TARGETS=$(addprefix $(BIN_DIR), $(TARGET_SOURCES:%.cpp=%))
 
 dir_guard=@mkdir -p $(@D)
 
-all: $(ALL_TARGETS)
+all: $(ALL_TARGETS) $(ALL_OBJECTS)
 
-$(ALL_TARGETS): $(COMMON_OBJECTS) $(TARGET_OBJECTS)
+$(BIN_DIR)%: $(OBJ_DIR)%.o $(COMMON_OBJECTS)
 	$(dir_guard)
-	$(CC) $(CFLAGS) $(TARGET_OBJECTS) $(COMMON_OBJECTS) -o $@
+	$(CC) $(CFLAGS) $^ -o $@	
 
 $(OBJ_DIR)%.o: %.cpp
 	$(dir_guard)
@@ -28,10 +27,3 @@ $(OBJ_DIR)%.o: %.cpp
 
 clean:
 	@rm -rf $(OUT_DIR)
-
-print_vars:
-	@echo $(TARGET_SOURCES)
-	@echo $(COMMON_SOURCES)
-	@echo $(TARGET_OBJECTS)
-	@echo $(COMMON_OBJECTS)
-	@echo $(ALL_TARGETS)

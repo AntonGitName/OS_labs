@@ -63,7 +63,20 @@ int main()
     syslog (LOG_NOTICE, "PARENT: creating segment of shared memory of %i bytes\n", BUFF_SIZE);
 
     shmid = shmget(IPC_PRIVATE, BUFF_SIZE, IPC_CREAT|0660);
+    if (shmid == -1)
+    {
+        syslog (LOG_ERR, "PARENT: shmget error");
+        exit(EXIT_FAILURE);
+    }
+
     shm = (char*) shmat(shmid, 0, 0);
+
+    if (shm == (char*) -1)
+    if (shmid == -1)
+    {
+        syslog (LOG_ERR, "PARENT: shmat error");
+        exit(EXIT_FAILURE);
+    }
 
     syslog (LOG_NOTICE, "PARENT: Memory attached\n");
 
