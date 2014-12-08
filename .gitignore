@@ -29,3 +29,6 @@
 
 # Binaries
 bin/
+
+# CLion
+.idea/
