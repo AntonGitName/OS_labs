@@ -42,7 +42,6 @@ namespace pthreadhelp {
             }
         };
 
-    public:
         size_t mSize;
         PNode mFront;
         PNode mBack;
