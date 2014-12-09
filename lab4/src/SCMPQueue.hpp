@@ -59,7 +59,7 @@ namespace SCMP {
 
     template<class T>
     bool Queue<T>::empty() const {
-        return this->mBack != mStub;
+        return this->mBack == mStub;
     }
 
     template<class T>
