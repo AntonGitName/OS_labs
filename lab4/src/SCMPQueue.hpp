@@ -29,6 +29,15 @@ namespace SCMP {
     template<class T>
     Queue<T>::Queue(const Queue<T> &another) {
         this->mBack = this->mFront = mStub = new QueueNode();
+        if (!another.empty()) {
+            PNode cur = another.mFront;
+            if (cur == another.mStub) {
+                cur =  cur->next;
+            }
+            for (;cur; cur = cur->next) {
+                enqueue(cur->data);
+            }
+        }
     }
 
     template<class T>
