@@ -4,7 +4,7 @@
 #include "MCMPQueue.hpp"
 #include <utility>
 
-const int numTests = 1000;
+const int numTests = 10000;
 
 typedef void *(action_t)(void *);
 typedef pthreadhelp::SimpleQueue<int> TestQueue;

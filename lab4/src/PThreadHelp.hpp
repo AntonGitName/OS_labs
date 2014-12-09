@@ -42,18 +42,16 @@ namespace pthreadhelp {
             }
         };
 
-        size_t mSize;
         PNode mFront;
-        PNode mBack;
+        PNode volatile mBack;
     };
 
     template<class T>
     SimpleQueue<T>::SimpleQueue(const SimpleQueue<T> &another)
-            : mSize(0), mFront(nullptr), mBack(nullptr) {
-        mSize = 0;
+            : mFront(nullptr), mBack(nullptr) {
         mBack = new QueueNode();
         mFront = new QueueNode(T(), mBack);
-        if (another.mSize) {
+        if (!another.empty()) {
             for (PNode cur = another.mFront->next; cur; cur = cur->next) {
                 enqueue(cur->data);
             }
@@ -65,10 +63,9 @@ namespace pthreadhelp {
         if (&other == this) {
             return *this;
         }
-        mSize = 0;
         mBack = new QueueNode();
         mFront = new QueueNode(T(), mBack);
-        if (other.mSize) {
+        if (!other.empty()) {
             for (PNode cur = other.mFront->next; cur != other.mBack; cur = cur->next) {
                 enqueue(cur->data);
             }
@@ -78,7 +75,7 @@ namespace pthreadhelp {
 
     template<class T>
     SimpleQueue<T>::SimpleQueue()
-            : mSize(0), mFront(nullptr), mBack(nullptr) {
+            : mFront(nullptr), mBack(nullptr) {
         mBack = new QueueNode();
         mFront = new QueueNode(T(), mBack);
     }
@@ -99,7 +96,6 @@ namespace pthreadhelp {
     template<class T>
     T SimpleQueue<T>::dequeue() {
         T result = mFront->next->data;
-        --mSize;
         PNode tmp = mFront;
         mFront = mFront->next;
         delete tmp;
@@ -111,6 +107,5 @@ namespace pthreadhelp {
         mBack->next = new QueueNode();
         mBack->data = item;
         mBack = mBack->next;
-        ++mSize;
     }
 }
