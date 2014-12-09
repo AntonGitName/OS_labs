@@ -149,12 +149,13 @@ void testBoth(int producers) {
 int main(int argc, char* argv[]) {
 
     if (argc != 3) {
-        printf("Usage:\ttest c p, where c is number of consumers and p is number of producers\n\n");
-        printf("Example:\ttest 5 3\n");
+        printf("Usage:  \tlab4 c p\n\t\t\t where c is number of consumers and p is number of producers\n\n");
+        printf("Example:\tlab4 5 3\n");
         printf("\t\t This will start 3 tests:\n");
         printf("\t\t 1. SCMP queue test with 1 consumer and 3 producers\n");
         printf("\t\t 2. MCMP queue test with 5 consumers and 3 producers\n");
         printf("\t\t 3. Both queues test with 1 consumer and 3 producers\n");
+        return 0;
     }
     int c = atoi(argv[1]);
     int p = atoi(argv[2]);
