@@ -32,7 +32,7 @@ namespace SCMP {
         if (!another.empty()) {
             PNode cur = another.mFront;
             if (cur == another.mStub) {
-                cur =  cur->next;
+                cur = cur->next;
             }
             for (;cur; cur = cur->next) {
                 enqueue(cur->data);
@@ -49,7 +49,7 @@ namespace SCMP {
         if (!another.empty()) {
             PNode cur = another.mFront;
             if (cur == another.mStub) {
-                cur =  cur->next;
+                cur = cur->next;
             }
             for (;cur; cur = cur->next) {
                 enqueue(cur->data);
