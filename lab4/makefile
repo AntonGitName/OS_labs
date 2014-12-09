@@ -3,7 +3,7 @@ SRC_DIR=src/
 OBJ_DIR=$(OUT_DIR)obj/
 BIN_DIR=$(OUT_DIR)bin/
 CXX=g++
-CFLAGS= -Wall -Werror -pthread -std=c++11 -Qunused-arguments
+CFLAGS= -Wall -Werror -pthread -std=c++1y
 
 SOURCES=$(wildcard $(SRC_DIR)*.cpp)
 OBJECTS=$(addprefix $(OBJ_DIR), $(notdir $(SOURCES:.cpp=.o)))

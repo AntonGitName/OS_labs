@@ -2,6 +2,7 @@
 #include <vector>
 #include "SCMPQueue.hpp"
 #include "MCMPQueue.hpp"
+#include <utility>
 
 const int numTests = 1000;
 
@@ -17,6 +18,8 @@ void clearQueues() {
     consumerTime = producerTime = 0.0;
 }
 
+typedef void *(action_t)(void *);
+
 void *produceMCMP(void *arg) {
     int t = *(int*)(&arg);
     clock_t begin = clock();
@@ -25,7 +28,6 @@ void *produceMCMP(void *arg) {
     }
     clock_t end = clock();
     double elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;
-    printf("Thread #%d (producer) was executed for %F seconds\n", t, elapsed_secs);
     producerTime += elapsed_secs;
     return nullptr;
 }
@@ -38,7 +40,6 @@ void *produceSCMP(void *arg) {
     }
     clock_t end = clock();
     double elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;
-    printf("Thread #%d (producer) was executed for %F seconds\n", t, elapsed_secs);
     producerTime += elapsed_secs;
     return nullptr;
 }
@@ -51,7 +52,6 @@ void *consumeMCMP(void *arg) {
     }
     clock_t end = clock();
     double elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;
-    printf("Thread #%d (consumer) was executed for %F seconds\n", t, elapsed_secs);
     consumerTime += elapsed_secs;
     return nullptr;
 }
@@ -64,86 +64,52 @@ void *consumeSCMP(void *arg) {
     }
     clock_t end = clock();
     double elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;
-    printf("Thread #%d (consumer) was executed for %F seconds\n", t, elapsed_secs);
     consumerTime += elapsed_secs;
     return nullptr;
 }
 
-void testMCMP(int consumers, int producers) {
-    printf("MCMP queue test start\n");
+auto test(size_t consumers, action_t consumerAction, size_t producers, action_t producerAction) {
     clearQueues();
     std::vector<pthread_t> threads(consumers + producers);
 
     for (size_t i = 0; i < producers; ++i) {
-        pthread_create(&threads[i], nullptr, produceMCMP, (void*)(i));
+        pthread_create(&threads[i], nullptr, producerAction, (void*)(i));
     }
-
     for (size_t i = producers; i < threads.size(); ++i) {
-        pthread_create(&threads[i], nullptr, consumeMCMP, (void*)(i));
+        pthread_create(&threads[i], nullptr, consumerAction, (void*)(i));
     }
-
     for (size_t i = 0; i < threads.size(); ++i) {
         pthread_join(threads[i], nullptr);
     }
-    printf("MCMP queue test end\n");
-    printf("Average consumer %F, Average producer %F\n", consumerTime / consumers, producerTime / producers);
+
+    return std::make_pair(consumerTime / consumers, producerTime / producers);
 }
 
-void testSCMP(int producers) {
+void testMCMP(size_t consumers, size_t producers) {
+    printf("MCMP queue test start\n");
+    auto result = test(consumers, consumeMCMP, producers, produceMCMP);
+    printf("Average consumer %F, Average producer %F\n", result.first, result.second);
+    printf("MCMP queue test end\n");
+}
+
+void testSCMP(size_t producers) {
     printf("SCMP queue test start\n");
     clearQueues();
-    int consumers = 1;
-    std::vector<pthread_t> threads(consumers + producers);
-
-    for (size_t i = 0; i < producers; ++i) {
-        pthread_create(&threads[i], nullptr, produceSCMP, (void*)(i));
-    }
-
-    for (size_t i = producers; i < threads.size(); ++i) {
-        pthread_create(&threads[i], nullptr, consumeSCMP, (void*)(i));
-    }
-
-    for (size_t i = 0; i < threads.size(); ++i) {
-        pthread_join(threads[i], nullptr);
-    }
+    size_t consumers = 1;
+    auto result = test(consumers, consumeSCMP, producers, produceSCMP);
+    printf("Average consumer %F, Average producer %F\n", result.first, result.second);
     printf("SCMP queue test end.\n");
-    printf("Average consumer %F, Average producer %F\n", consumerTime / consumers, producerTime / producers);
 }
 
-void testBoth(int producers) {
+void testBoth(size_t producers) {
     printf("Both queues test start\n");
     clearQueues();
-    int consumers = 1;
-    std::vector<pthread_t> threads(consumers + producers);
-
-    for (size_t i = 0; i < producers; ++i) {
-        pthread_create(&threads[i], nullptr, produceSCMP, (void*)(i));
-    }
-    for (size_t i = producers; i < threads.size(); ++i) {
-        pthread_create(&threads[i], nullptr, consumeSCMP, (void*)(i));
-    }
-    for (size_t i = 0; i < threads.size(); ++i) {
-        pthread_join(threads[i], nullptr);
-    }
-
-    double SCMPconsumer = consumerTime / consumers;
-    double SCMPproducer = producerTime / producers;
-
-    clearQueues();
-    for (size_t i = 0; i < producers; ++i) {
-        pthread_create(&threads[i], nullptr, produceMCMP, (void*)(i));
-    }
-    for (size_t i = producers; i < threads.size(); ++i) {
-        pthread_create(&threads[i], nullptr, consumeMCMP, (void*)(i));
-    }
-    for (size_t i = 0; i < threads.size(); ++i) {
-        pthread_join(threads[i], nullptr);
-    }
-
+    size_t consumers = 1;
+    auto resultSCMP = test(consumers, consumeSCMP, producers, produceSCMP);
+    auto resultMCMP = test(consumers, consumeMCMP, producers, produceMCMP);
+    printf("MCMP: Average consumer %F, Average producer %F\n", resultMCMP.first, resultMCMP.second);
+    printf("SCMP: Average consumer %F, Average producer %F\n", resultSCMP.first, resultSCMP.second);
     printf("Both queues test end.\n");
-    printf("MCMP: Average consumer %F, Average producer %F\n", consumerTime / consumers, producerTime / producers);
-    printf("SCMP: Average consumer %F, Average producer %F\n", SCMPconsumer, SCMPproducer);
-
 }
 
 int main(int argc, char* argv[]) {
