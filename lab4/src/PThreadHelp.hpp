@@ -30,19 +30,19 @@ namespace pthreadhelp {
         virtual T dequeue();
         virtual bool empty() const;
 
-    private:
+    protected:
         struct QueueNode;
         typedef QueueNode *PNode;
 
         struct QueueNode {
             T data;
-            PNode prev;
             PNode next;
 
-            QueueNode(T data, PNode prev = nullptr, PNode next = nullptr) : data(data), prev(prev), next(next) {
+            QueueNode(T data = T(), PNode next = nullptr) : data(data), next(next) {
             }
         };
 
+    public:
         size_t mSize;
         PNode mFront;
         PNode mBack;
@@ -51,14 +51,13 @@ namespace pthreadhelp {
     template<class T>
     SimpleQueue<T>::SimpleQueue(const SimpleQueue<T> &another)
             : mSize(0), mFront(nullptr), mBack(nullptr) {
-        mSize = another.mSize;
-        if (mSize) {
-            PNode newNode = new QueueNode(another.mFront->data);
-            mFront = newNode;
+        mSize = 0;
+        mBack = new QueueNode();
+        mFront = new QueueNode(T(), mBack);
+        if (another.mSize) {
             for (PNode cur = another.mFront->next; cur; cur = cur->next) {
-                newNode = newNode->next = new QueueNode(cur->data, newNode);
+                enqueue(cur->data);
             }
-            mBack = newNode;
         }
     }
 
@@ -67,15 +66,13 @@ namespace pthreadhelp {
         if (&other == this) {
             return *this;
         }
-        mSize = other.mSize;
-        mFront = mBack = nullptr;
-        if (mSize) {
-            PNode newNode = new QueueNode(other.mFront->data);
-            mFront = newNode;
-            for (PNode cur = other.mFront->next; cur; cur = cur->next) {
-                newNode = newNode->next = new QueueNode(cur->data, newNode);
+        mSize = 0;
+        mBack = new QueueNode();
+        mFront = new QueueNode(T(), mBack);
+        if (other.mSize) {
+            for (PNode cur = other.mFront->next; cur != other.mBack; cur = cur->next) {
+                enqueue(cur->data);
             }
-            mBack = newNode;
         }
         return *this;
     }
@@ -83,6 +80,8 @@ namespace pthreadhelp {
     template<class T>
     SimpleQueue<T>::SimpleQueue()
             : mSize(0), mFront(nullptr), mBack(nullptr) {
+        mBack = new QueueNode();
+        mFront = new QueueNode(T(), mBack);
     }
 
     template<class T>
@@ -95,29 +94,24 @@ namespace pthreadhelp {
 
     template<class T>
     bool SimpleQueue<T>::empty() const {
-        return mFront == nullptr;
+        return mFront->next == mBack;
     }
 
     template<class T>
     T SimpleQueue<T>::dequeue() {
-        T result = mFront->data;
+        T result = mFront->next->data;
         --mSize;
         PNode tmp = mFront;
         mFront = mFront->next;
-        if (mFront == nullptr) {
-            mBack = nullptr;
-        }
         delete tmp;
         return result;
     }
 
     template<class T>
     void SimpleQueue<T>::enqueue(T const &item) {
-        if (mFront != nullptr) {
-            mBack = mBack->next = new QueueNode(item, mBack);
-        } else {
-            mFront = mBack = new QueueNode(item);
-        }
+        mBack->next = new QueueNode();
+        mBack->data = item;
+        mBack = mBack->next;
         ++mSize;
     }
 }

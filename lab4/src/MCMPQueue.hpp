@@ -18,7 +18,6 @@ namespace MCMP {
     class Queue : public SimpleQueue<T> {
 
     public:
-
         Queue();
         Queue(const Queue<T> &another);
         Queue<T>& operator=(const Queue<T> &another);
@@ -38,6 +37,7 @@ namespace MCMP {
     template<class T>
     Queue<T>::Queue(const Queue<T> &another) : SimpleQueue<T>::SimpleQueue(another) {
         pthread_cond_init(&notEmptyCond, NULL);
+        pthread_mutex_init(&mutex, NULL);
     }
 
     template<class T>
@@ -50,10 +50,14 @@ namespace MCMP {
     template<class T>
     Queue<T>::Queue() : SimpleQueue<T>::SimpleQueue() {
         pthread_cond_init(&notEmptyCond, NULL);
+        pthread_mutex_init(&mutex, NULL);
     }
 
     template<class T>
-    Queue<T>::~Queue() {}
+    Queue<T>::~Queue() {
+        pthread_mutex_destroy(&mutex);
+        pthread_cond_destroy(&notEmptyCond);
+    }
 
     template<class T>
     bool Queue<T>::empty() const {

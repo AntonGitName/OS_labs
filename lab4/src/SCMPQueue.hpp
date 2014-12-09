@@ -1,96 +1,79 @@
 #pragma once
 
 #include <pthread.h>
+#include "PThreadHelp.hpp"
 
 namespace SCMP {
 
+    using pthreadhelp::SimpleQueue;
+
     template<class T>
-    class Queue {
+    class Queue : public SimpleQueue<T> {
 
     public:
         Queue();
-
         Queue(const Queue<T> &another);
-
+        Queue<T>& operator=(const Queue<T> &another);
         ~Queue();
 
         void enqueue(const T &item);
-
         T dequeue();
-
+        T forceDequeue();
         bool empty() const;
 
     private:
-        struct QueueNode;
-        typedef QueueNode *PNode;
-
-        struct QueueNode {
-            T data;
-            PNode next;
-            PNode prev;
-
-            QueueNode(T data, PNode next = nullptr, PNode prev = nullptr) : data(data), next(next), prev(prev) {
-            }
-        };
-
-        size_t mSize;
-        PNode mFront;
-        PNode mBack;
+        mutable pthread_mutex_t mutex;
+        pthread_cond_t notEmptyCond;
 
     };
 
     template<class T>
-    Queue<T>::Queue(const Queue<T> &another)
-            : mSize(0), mFront(nullptr), mBack(nullptr) {
-        mSize = another.mSize;
-        if (mSize) {
-            PNode newNode = new QueueNode(another.mFront->data);
-            mFront = newNode;
-            for (PNode cur = another.mFront->next; cur; cur = cur->next) {
-                newNode = newNode->next = new QueueNode(cur->data, newNode);
-            }
-            mBack = newNode;
-        }
+    Queue<T>::Queue(const Queue<T> &another) : SimpleQueue<T>::SimpleQueue(another) {
+        pthread_cond_init(&notEmptyCond, NULL);
+        pthread_mutex_init(&mutex, NULL);
     }
 
     template<class T>
-    Queue<T>::Queue()
-            : mSize(0), mFront(nullptr), mBack(nullptr) {
+    Queue<T>& Queue<T>::operator=(const Queue<T> &another) {
+        pthreadhelp::LockGuard lg(mutex);
+        this->SimpleQueue<T>::operator=(another);
+        return *this;
+    }
+
+    template<class T>
+    Queue<T>::Queue() : SimpleQueue<T>::SimpleQueue() {
+        pthread_cond_init(&notEmptyCond, NULL);
+        pthread_mutex_init(&mutex, NULL);
     }
 
     template<class T>
     Queue<T>::~Queue() {
-        for (PNode cur = mFront, tmp; cur; cur = tmp) {
-            tmp = cur->next;
-            delete cur;
-        }
+        pthread_mutex_destroy(&mutex);
+        pthread_cond_destroy(&notEmptyCond);
     }
 
     template<class T>
     bool Queue<T>::empty() const {
-        return mFront == nullptr;
+        pthreadhelp::LockGuard lg(mutex);
+        return SimpleQueue<T>::empty();
     }
 
+    // wait and pop
     template<class T>
     T Queue<T>::dequeue() {
-        T result = mFront->data;
-        --mSize;
-        PNode tmp = mFront;
-        mFront = mFront->next;
-        if (mFront == nullptr) {
-            mBack = nullptr;
+        if (SimpleQueue<T>::empty()) {
+            pthreadhelp::LockGuard lg(mutex);
+            while (SimpleQueue<T>::empty()) {
+                pthread_cond_wait(&notEmptyCond, &mutex);
+            }
         }
-        delete tmp;
-        return result;
+        return SimpleQueue<T>::dequeue();
     }
 
     template<class T>
     void Queue<T>::enqueue(T const &item) {
-        if (mFront != nullptr) {
-            mBack = mBack->next = new QueueNode(item, nullptr, mBack);
-        } else {
-            mFront = mBack = new QueueNode(item);
-        }
-        ++mSize;
+        pthreadhelp::LockGuard lg(mutex);
+        SimpleQueue<T>::enqueue(item);
+        pthread_cond_signal(&notEmptyCond);
     }
 }
