@@ -18,7 +18,6 @@ namespace SCMP {
 
         void enqueue(const T &item);
         T dequeue();
-        T forceDequeue();
         bool empty() const;
     private:
         using typename pthreadhelp::SimpleQueue<T>::QueueNode;
